@@ -2,14 +2,14 @@ const userModel = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const aws = require("../utils/aws")
 const jwt = require('jsonwebtoken')
-const { isEmpty, isValidEmail, isValidPhone, isValidPassword, isValidPincode, isValidObjectId, isValidName } = require('../utils/validation')
+const { isValidBody,isEmpty, isValidEmail, isValidPhone, isValidPassword, isValidPincode, isValidObjectId, isValidName } = require('../utils/validation')
 
 
 const createUser = async (req, res) => {
     try {
         let { fname, lname, email, phone, password, profileImage, address } = req.body
         //validation for emptyBody
-        if (Object.keys(req.body).length == 0) {
+        if (!isValidBody(req.body)) {
             return res.status(400).send({ status: false, message: "Please Enter Some Input" });
         }
         if (!fname) {
@@ -56,8 +56,7 @@ const createUser = async (req, res) => {
             return res.status(400).send({ status: false, message: "Weak Password,Minimum eight and maximum 15 characters, at least one uppercase letter, one lowercase letter, one number and one special character" })
         }
         //bcrypt password
-        const salt = await bcrypt.genSalt(10)
-        const hashedPassword = await bcrypt.hash(password, salt)
+        const hashedPassword = await bcrypt.hash(password, 10)
 
         //validation for address
         if (!address) {
@@ -73,7 +72,7 @@ const createUser = async (req, res) => {
             if (!shipping) {
                 return res.status(400).send({ status: false, message: "shipping Is Mandatory" });
             }
-            if (typeof (shipping) !== "object" || Object.keys(shipping).length == 0) {
+            if (typeof (shipping) !== "object" || !isValidBody(billing)) {
                 return res.status(400).send({ status: false, message: "shipping cant empty / Object type only " })
             }
             if (!isEmpty(shipping.street)) {
@@ -92,7 +91,7 @@ const createUser = async (req, res) => {
             if (!billing) {
                 return res.status(400).send({ status: false, message: "billing is Mandatory " })
             }
-            if (typeof (billing) !== "object" || Object.keys(billing).length == 0) {
+            if (typeof (billing) !== "object" || !isValidBody(billing)) {
                 return res.status(400).send({ status: false, message: "billing cant empty / Object type only " })
             }
             if (!isEmpty(billing.street)) {
@@ -140,7 +139,7 @@ const login = async (req, res) => {
         let { email, password } = data
 
         //validation for emptyBody
-        if (Object.keys(req.body).length == 0) {
+        if (!isValidBody(req.body)) {
             return res.status(400).send({ status: false, message: "Please Enter Some Input" });
         }
         //validation for email
@@ -173,22 +172,11 @@ const login = async (req, res) => {
 };
 
 
+
 const getUser = async (req, res) => {
     try {
         let userId = req.params.userId
-
-        if (!isValidObjectId(userId)) {
-            return res.status(400).send({ status: false, message: "Invalid userId" })
-        }
-
         let findUser = await userModel.findById(userId)
-        if (!findUser) {
-            return res.status(404).send({ status: false, message: "User not Found" })
-        }
-        //Authorization
-        if (req.userId !== userId) {
-            return res.status(403).send({ status: false, message: "Access denied" });
-        }
         return res.status(200).send({ status: true, message: "User profile details", data: findUser })
     }
     catch (error) {
@@ -196,25 +184,17 @@ const getUser = async (req, res) => {
     }
 }
 
+
+
 const updateUser = async (req, res) => {
     try {
         let userId = req.params.userId
 
-        if (!isValidObjectId(userId)) {
-            return res.status(400).send({ status: false, message: "Invalid userId" })
-        }
         let findUser = await userModel.findById(userId)
-        if (!findUser) {
-            return res.status(404).send({ status: false, message: "User not Found" })
-        }
         let { fname, lname, email, phone, password, profileImage, address } = req.body
 
-        //Authorization
-        if (req.userId !== userId) {
-            return res.status(403).send({ status: false, message: "Access denied" });
-        }
         //validation for emptyBody
-        if (Object.keys(req.body).length == 0) {
+        if (!isValidBody(req.body)) {
             return res.status(400).send({ status: false, message: "Please Enter Some Input" });
         }
 
@@ -255,15 +235,14 @@ const updateUser = async (req, res) => {
             if (!isValidPassword(password)) {
                 return res.status(400).send({ status: false, message: "Password is in Invalid formate,Minimum eight and maximum 15 characters, at least one uppercase letter, one lowercase letter, one number and one special character" })
             }
-            const salt = await bcrypt.genSalt(10)
-            var hashedPassword = await bcrypt.hash(password, salt)
+            var hashedPassword = await bcrypt.hash(password, 10)
         }
 
         //validation for address
         if (address) {
             try {
                 address = JSON.parse(address)
-                if (typeof address !== "object" || Object.keys(address).length == 0) {
+                if (typeof address !== "object" || !isValidBody(address)) {
                     return res.status(400).send({ status: false, message: "Address cant empty / Object type only " })
                 }
                 let { shipping, billing } = address
@@ -273,7 +252,7 @@ const updateUser = async (req, res) => {
                     address.shipping = findUser.address.shipping
 
                 } else {
-                    if (typeof shipping !== "object" || Object.keys(shipping).length == 0) {
+                    if (typeof shipping !== "object" || !isValidBody(shipping)) {
                         return res.status(400).send({ status: false, message: "shipping cant empty / Object type only " })
                     }
                     if (!isEmpty(shipping.street)) {
@@ -290,7 +269,7 @@ const updateUser = async (req, res) => {
                 if (!billing) {
                     address.billing = findUser.address.billing
                 } else {
-                    if (typeof billing !== "object" || Object.keys(billing).length == 0) {
+                    if (typeof billing !== "object" || !isValidBody(billing)) {
                         return res.status(400).send({ status: false, message: "billing cant empty / Object type only " })
                     }
                     if (!isEmpty(billing.street)) {

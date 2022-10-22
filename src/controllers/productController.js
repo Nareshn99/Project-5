@@ -1,13 +1,13 @@
 const productModel = require('../models/productModel');
 const aws = require("../utils/aws")
-const { isEmpty, isValidPrice, isValidSize, isValidObjectId,isValidName } = require('../utils/validation')
+const { isEmpty, isValidPrice,isValidBody, isValidSize, isValidObjectId,isValidName } = require('../utils/validation')
 
 const createProduct = async function (req, res) {
     try {
         let { title, description, price, currencyId, currencyFormat, style, isFreeShipping, availableSizes, installments, isDeleted } = req.body;
 
         //validation for emptyBody
-        if (Object.keys(req.body).length == 0) {
+        if (!isValidBody(req.body)) {
             return res.status(400).send({ status: false, message: "Please Enter Some Input" });
         };
         if (!title) {
@@ -47,6 +47,8 @@ const createProduct = async function (req, res) {
         } else {
             req.body.currencyFormat = "₹"
         }
+
+
         if (isFreeShipping) {
             if (typeof isFreeShipping !== "boolean") {
                 return res.status(400).send({ status: false, message: "isFreeShipping Boolean only" })
@@ -61,7 +63,7 @@ const createProduct = async function (req, res) {
         if (!availableSizes) {
             return res.status(400).send({ status: false, msga: "give atleast one availableSizes" })
         };
-        let size = availableSizes.toUpperCase().split(",") //creating an array
+        let size = availableSizes.toUpperCase().split(",").map((item) => item.trim()) //creating an array
         req.body.availableSizes = size;
 
         for (let i = 0; i < size.length; i++) {
@@ -104,7 +106,7 @@ const getProductById = async (req, res) => {
             return res.status(404).send({ status: false, message: "products not found" });
         }
 
-        return res.status(200).send({ status: true, message: "Success(product details)", data: result });
+        return res.status(200).send({ status: true, message: "Success", data: result });
     }
     catch (err) {
         return res.status(500).send({ status: false, message: err.message });
@@ -117,7 +119,7 @@ const getProduct = async (req, res) => {
         let { size, name, priceGreaterThan, priceLessThan, priceSort } = req.query;
         let filterQueryData = { isDeleted: false }
         if (size) {
-            let sizes = size.toUpperCase().split(",") //creating an array
+            let sizes = size.toUpperCase().split(",").map((item) => item.trim()) //creating an array
             filterQueryData['availableSizes'] = sizes
             for (let i = 0; i < sizes.length; i++) {
                 if (!isValidSize(sizes[i])) {
@@ -148,6 +150,7 @@ const getProduct = async (req, res) => {
             }
             filterQueryData['price'] = { $lt: priceLessThan };
         }
+        //ascending descending filtter
         if (priceSort) {
             if (priceSort == 1) {
                 const finalData = await productModel.find(filterQueryData).sort({ price: 1 })
@@ -182,7 +185,7 @@ const updateProduct = async function (req, res) {
         let { title, description, price, currencyId, currencyFormat, style, isFreeShipping, availableSizes, productImage, installments, isDeleted } = req.body;
 
         //validation for emptyBody
-        if (Object.keys(req.body).length == 0) {
+        if (!isValidBody(req.body)) {
             return res.status(400).send({ status: false, message: "Please Enter Some Input" });
         };
         if (title) {
@@ -218,12 +221,12 @@ const updateProduct = async function (req, res) {
             };
         }
         if (isFreeShipping) {
-            if (typeof isFreeShipping !== "boolean") {
+            if (isFreeShipping != "true" && isFreeShipping != "false") {
                 return res.status(400).send({ status: false, message: "isFreeShipping Boolean only" })
             };
         }
         if (availableSizes) {
-            let size = availableSizes.toUpperCase().split(",") //creating an array
+            let size = availableSizes.toUpperCase().split(",").map((item) => item.trim()) //creating an array
             req.body.availableSizes = size;
             for (let i = 0; i < size.length; i++) {
                 if (!isValidSize(size[i])) {

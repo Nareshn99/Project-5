@@ -10,23 +10,11 @@ const createOrder = async function (req, res) {
         let { cancellable, status } = data;
         data.userId = userId
 
-        if (!isValidObjectId(userId)) {
-            return res.status(400).send({ status: false, msg: "Invalid userId" })
-        }
-
-        const userDetails = await userModel.findOne({ _id: userId })
-        if (!userDetails) {
-            return res.status(404).send({ status: false, msg: "user not found" })
-        }
-        // //Authorization
-        if (req.userId !== userId) {
-            return res.status(403).send({ status: false, message: "Access denied" });
-        }
         let dataFromCart = await cartModel.findOne({ userId })
         if (!dataFromCart) {
             return res.status(404).send({ status: false, message: "Cart not found" })
         }
-        //add data from cart
+        //add data in body from cart
         data.items = dataFromCart.items
         if (dataFromCart.items.length == 0) {
             return res.status(404).send({ status: false, message: "Items not found" })
@@ -46,9 +34,11 @@ const createOrder = async function (req, res) {
             };
         }
         if (status) {
-            if (status != "pending") {
-                return res.status(400).send({ status: false, message: "Status should be pending" })
+            if (!isValidStatus(status)) {
+                return res.status(400).send({ status: false, message: "Status can only contain pending,completed,cancelled" })
             }
+        } else {
+            data.status = "pending"
         }
         await cartModel.findOneAndUpdate({ userId }, { $set: { items: [], totalPrice: 0, totalItems: 0 } })
         let result = await orderModel.create(data);
@@ -65,16 +55,6 @@ const updateOrder = async function (req, res) {
         userId = req.params.userId
         body = req.body
 
-        if (!isValidObjectId(userId))
-            return res.status(400).send({ status: false, msg: `Invalid userId` });
-
-        const user = await userModel.findOne({ _id: userId })
-        if (!user) return res.status(404).send({ status: false, msg: "User not found" })
-
-        // //Authorization
-        if (req.userId !== userId) {
-            return res.status(403).send({ status: false, message: "Access denied" });
-        }
         if (!isValidBody(body)) {
             return res.status(400).send({ status: false, message: "body should not be empty" })
         }
@@ -84,28 +64,38 @@ const updateOrder = async function (req, res) {
         if (!isValidObjectId(orderId))
             return res.status(400).send({ status: false, msg: `orderId ${orderId} is invalid` });
 
-        const validOrder = await orderModel.findOne({ _id: orderId })
+        let findOrder = await orderModel.findOne({_id:orderId,isDeleted:false})
+        if (!findOrder) return res.status(404).send({ status: false, message: "No order found with the give orderId" })
 
-        if (!validOrder) return res.status(404).send({ status: false, message: "Order does not exists" })
+        if (findOrder.userId!= userId) return res.status(403).send({ status: false, message: "This order doesnot belongs to your account" })
 
-        if (!isValid(status))
-            return res.status(400).send({ status: false, msg: "status is required" })
+        if (status == "cancelled") {
 
-        if (!isValidStatus(status))
-            return res.status(400).send({ status: false, message: `Order status should be 'pending', 'completed', 'cancelled' ` })
+            if (findOrder.cancellable == false) return res.status(400).send({ status: false, message: "You can't cancel this order" })
 
-        if (validOrder.status == 'completed' && status == 'pending')
-            return res.status(400).send({ status: false, message: "This order is already completed" })
+            if (findOrder.status == "cancelled") return res.status(400).send({ status: false, message: "This order is already cancelled" })
 
-        if (status == 'cancelled') {
-            if (validOrder.cancellable == false)
-                return res.status(400).send({ status: false, message: "This order is not cancellable." })
+            let updateOrder = await orderModel.findOneAndUpdate({ _id: orderId }, { status: "cancelled" }, { new: true })
+            return res.status(200).send({ status: true, message: "Success", data: updateOrder })
         }
-        let data = {}
-        data.status = status
+        if (status == "completed") {
 
-        let updateData = await orderModel.findOneAndUpdate({ _id: orderId }, data, { new: true })
-        return res.status(200).send({ status: true, message: "Success", data: updateData })
+            if (findOrder.status == "completed") return res.status(400).send({ status: false, message: "This order is already completed" })
+
+            if (findOrder.status == "cancelled") return res.status(400).send({ status: false, message: "This order is already cancelled , after cancellation you can't update it to completed" })
+
+            let updateOrder = await orderModel.findOneAndUpdate({ _id: orderId }, { status: "completed" }, { new: true })
+            return res.status(200).send({ status: true, message: "Success", data: updateOrder })
+
+        }
+        if (status == "pending") {
+            if (findOrder.status == "pending") return res.status(400).send({ status: false, message: "This order is already in pending" })
+
+            if (findOrder.status == "cancelled") return res.status(400).send({ status: false, message: "This order is already cancelled , after cancellation you can't update it to pending" })
+
+            if (findOrder.status == "completed") return res.status(400).send({ status: false, message: "This order is already completed, after completion you can't update it to pending" })
+
+        }
     } catch (error) {
         res.status(500).send({ msg: "Error", error: error.message });
     }

@@ -4,14 +4,14 @@ const {createUser,login,getUser,updateUser}=require('../controllers/userControll
 const {createProduct,getProduct,getProductById,updateProduct,deleteProduct} = require("../controllers/productController")
 const { createCart, getCart ,updateCart,deleteCartById} = require("../controllers/cartController")
 const {createOrder,updateOrder}=require('../controllers/orderController')
-const {authenticationMid}=require('../middelwares/authrentication')
+const {authentication, authorization}=require('../middelwares/authrentication')
 
 
 //Users Api's
 router.post('/register',createUser)
 router.post('/login',login)
-router.get('/user/:userId/profile',authenticationMid,getUser)
-router.put('/user/:userId/profile',authenticationMid,updateUser)
+router.get('/user/:userId/profile',authentication, authorization,getUser)
+router.put('/user/:userId/profile',authentication, authorization,updateUser)
 
 //product apis
 router.post("/products",createProduct)
@@ -21,14 +21,14 @@ router.put('/products/:productId', updateProduct)
 router.delete("/products/:productId", deleteProduct)
 
 // cart apis 
-router.post("/users/:userId/cart", authenticationMid, createCart)
-router.get("/users/:userId/cart",authenticationMid, getCart)
-router.put('/users/:userId/cart',authenticationMid,updateCart)
-router.delete('/users/:userId/cart',authenticationMid, deleteCartById)
+router.post("/users/:userId/cart", authentication, authorization, createCart)
+router.get("/users/:userId/cart",authentication, authorization, getCart)
+router.put('/users/:userId/cart',authentication, authorization,updateCart)
+router.delete('/users/:userId/cart',authentication, authorization, deleteCartById)
 
 // order apis 
-router.post("/users/:userId/orders",authenticationMid, createOrder)
-router.put("/users/:userId/orders", authenticationMid,updateOrder)
+router.post("/users/:userId/orders",authentication, authorization, createOrder)
+router.put("/users/:userId/orders", authentication, authorization,updateOrder)
 
 
 //errorHandling for wrong address
